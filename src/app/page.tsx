@@ -90,7 +90,7 @@ export default function Home() {
   const [step, setStep] = useState<Step>("landing");
   const [era, setEra] = useState<Era | null>(null);
   const [region, setRegion] = useState<Region | null>(null);
-  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [hasVisitedLanding, setHasVisitedLanding] = useState(false);
   const [photo, setPhoto] = useState<string | null>(null);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [result, setResult] = useState<string | null>(null);
@@ -265,8 +265,8 @@ export default function Home() {
   }, [result, era, region]);
 
   const reset = () => {
-    // Skip landing if terms already accepted — go straight to region
-    if (termsAccepted) {
+    // Skip landing on subsequent runs — go straight to region
+    if (hasVisitedLanding) {
       setStep("region");
     } else {
       setStep("landing");
@@ -314,23 +314,9 @@ export default function Home() {
             Star in your very own Hip Hop album cover with an A.I. generated backdrop.
           </p>
 
-          {/* Terms */}
-          <label className="flex items-center gap-3 cursor-pointer mb-8 text-sm text-white/60">
-            <input
-              type="checkbox"
-              checked={termsAccepted}
-              onChange={(e) => setTermsAccepted(e.target.checked)}
-              className="w-4 h-4 accent-[var(--color-gold)] rounded"
-            />
-            <span>
-              Accept the <span className="underline text-white/80">Terms and Conditions</span>
-            </span>
-          </label>
-
           <button
             className="btn-primary"
-            disabled={!termsAccepted}
-            onClick={() => setStep("region")}
+            onClick={() => { setHasVisitedLanding(true); setStep("region"); }}
           >
             Get Started
           </button>
