@@ -153,16 +153,25 @@ const ERA_PHOTO_STYLE: Record<Era, string> = {
 // FRAMING
 // ============================================================
 
-type Framing = "medium" | "medium-close" | "close-up";
+type Framing = "wide" | "medium" | "medium-close" | "close-up";
 
+/**
+ * Random framing distribution:
+ *   20% wide (full body, head to toe — shows shoes, pants, full outfit)
+ *   35% medium (waist up — the classic album cover framing)
+ *   25% medium-close (chest up — emphasizes jewelry, chains, upper layers)
+ *   20% close-up (shoulders/face — intimate, iconic, tight crop)
+ */
 function pickFraming(): Framing {
   const roll = Math.random();
-  if (roll < 0.5) return "medium";
-  if (roll < 0.8) return "medium-close";
+  if (roll < 0.20) return "wide";
+  if (roll < 0.55) return "medium";
+  if (roll < 0.80) return "medium-close";
   return "close-up";
 }
 
 const FRAMING_TEXT: Record<Framing, string> = {
+  wide: "Full body shot framed head to toe, showing the complete outfit including shoes. The subject stands confidently with their full look visible.",
   medium: "Medium shot framed from the waist up.",
   "medium-close": "Medium close-up shot framed from the chest up, focusing on the upper body and face.",
   "close-up": "Close-up shot framed from the shoulders up, tight on the face and upper chest, intimate and iconic.",
@@ -229,8 +238,8 @@ export function getRandomPrompt(era: Era, region: Region): string {
   const framing = pickFraming();
   const framingText = FRAMING_TEXT[framing];
 
-  // Strip lower-body for tighter shots
-  const finalClothes = framing === "medium" ? clothes : stripLowerBody(clothes);
+  // Wide + medium keep full outfit; tighter shots strip lower-body items
+  const finalClothes = (framing === "wide" || framing === "medium") ? clothes : stripLowerBody(clothes);
 
   // Assemble
   const prompt = [

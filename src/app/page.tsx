@@ -283,7 +283,7 @@ export default function Home() {
     step === "landing" ? 0 : step === "region" ? 1 : step === "era" ? 2 : step === "upload" ? 3 : -1;
 
   return (
-    <div className="min-h-screen bg-[#0d0d0d] text-white flex flex-col">
+    <div className="h-screen bg-[#0d0d0d] text-white flex flex-col overflow-hidden">
       <canvas ref={canvasRef} className="hidden" />
       <input
         ref={fileInputRef}
@@ -564,20 +564,20 @@ export default function Home() {
 
       {/* ===== RESULT ===== */}
       {step === "result" && result && (
-        <div className="fade-in flex-1 flex flex-col px-6 py-4 overflow-y-auto">
+        <div className="fade-in flex-1 flex flex-col px-4 py-3 min-h-0">
           <Logo size="sm" />
-          <div className="mt-3 mb-3">
+          <div className="mt-2 mb-2">
             <StepIndicator current={3} total={4} />
           </div>
 
-          <div className="flex-1 flex flex-col items-center justify-center text-center max-w-lg mx-auto w-full min-h-0">
-            <h2 className="text-xl font-bold uppercase tracking-wider mb-3">
-              Your Cover
-            </h2>
+          <h2 className="text-lg font-bold uppercase tracking-wider text-center mb-2">
+            Your Cover
+          </h2>
 
-            {/* Result image with overlays */}
-            <div className="relative w-full max-w-sm mx-auto mb-6">
-              <div className="aspect-square rounded-lg overflow-hidden ring-2 ring-[var(--color-gold)]">
+          {/* Result image — fills available space */}
+          <div className="flex-1 min-h-0 flex items-center justify-center">
+            <div className="relative h-full max-h-full" style={{ aspectRatio: "1/1" }}>
+              <div className="h-full aspect-square rounded-lg overflow-hidden ring-2 ring-[var(--color-gold)]">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={result} alt="Your album cover" className="w-full h-full object-cover" />
               </div>
@@ -590,28 +590,28 @@ export default function Home() {
                 className="absolute inset-0 w-full h-full pointer-events-none"
               />
             </div>
-
-            <div className="w-full flex flex-col gap-3 items-center">
-              <button className="btn-primary" onClick={handleDownload}>
-                Save Image
-              </button>
-              <button className="btn-secondary" onClick={handleGenerate}>
-                Regenerate
-              </button>
-              <button
-                className="text-xs text-white/40 hover:text-white/60 transition-colors mt-1"
-                onClick={reset}
-              >
-                Start Over
-              </button>
-            </div>
           </div>
+
+          <div className="flex gap-2 mt-3 w-full max-w-sm mx-auto">
+            <button className="btn-primary flex-1 !py-3 !text-xs" onClick={handleDownload}>
+              Save
+            </button>
+            <button className="btn-secondary flex-1 !py-3 !text-xs" onClick={handleGenerate}>
+              Regenerate
+            </button>
+          </div>
+          <button
+            className="text-xs text-white/40 hover:text-white/60 transition-colors mt-2 text-center"
+            onClick={reset}
+          >
+            Start Over
+          </button>
         </div>
       )}
 
       {/* Footer — shown on inner steps */}
       {stepNum >= 0 && (
-        <div className="py-4 text-center">
+        <div className="py-2 text-center flex-shrink-0">
           <p className="text-[10px] text-white/20 uppercase tracking-widest">
             Hennessy {"•"} 50 Years of Hip Hop
           </p>
