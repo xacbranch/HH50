@@ -72,10 +72,124 @@ const REGION_MAP: Record<Region, string> = {
   international: "International",
 };
 
+type Framing = "medium" | "medium-close" | "close-up";
+
+/**
+ * Randomly pick a framing type:
+ *   50% medium (waist up — original)
+ *   30% medium-close (chest up)
+ *   20% close-up (shoulders/face)
+ */
+function pickFraming(): Framing {
+  const roll = Math.random();
+  if (roll < 0.5) return "medium";
+  if (roll < 0.8) return "medium-close";
+  return "close-up";
+}
+
+const FRAMING_TEXT: Record<Framing, string> = {
+  medium: "Medium shot framed from the waist up.",
+  "medium-close":
+    "Medium close-up shot framed from the chest up, focusing on the upper body and face.",
+  "close-up":
+    "Close-up shot framed from the shoulders up, tight on the face and upper chest, intimate and iconic.",
+};
+
+/**
+ * Lower-body keywords — if a comma-separated clothing item contains any of
+ * these words it describes something below the waist and should be stripped
+ * for tighter framings.
+ */
+const LOWER_BODY_KEYWORDS = [
+  // pants / bottoms
+  "pants", "pant", "jeans", "jean", "trousers", "trouser", "shorts",
+  "bell bottoms", "bell-bottoms", "bellbottoms", "palazzo",
+  "cargo pants", "cargo shorts", "joggers", "sweatpants",
+  "leggings", "chinos", "khakis", "denim shorts",
+  "corduroy", "wide-leg", "wide leg", "skinny", "slim-straight",
+  "baggy jeans", "carpenter jeans",
+  // skirts / dresses (rare but possible)
+  "skirt",
+  // shoes / footwear
+  "boots", "boot", "sneakers", "sneaker", "shoes", "shoe",
+  "timberland", "timbs", "air force", "shell-toe", "shell toe",
+  "superstars", "cortez", "platform shoes", "platform boot",
+  "foam runner", "rick owens", "maison margiela",
+  "canvas sneaker", "combat boot",
+  // socks
+  "long socks", "tube socks",
+  // belt (often describes waist-down fit)
+  // NOT stripping belts — they can be visible in close-ups on outerwear
+];
+
+/**
+ * Strip lower-body clothing items from a comma-separated clothes string.
+ * We split on commas, check each item, and keep only upper-body pieces.
+ */
+function stripLowerBody(clothes: string): string {
+  // Split on ", " or "," respecting "and" joins
+  // The clothes strings use comma-separated lists, sometimes with "and" before the last item
+  const items = clothes.split(/,\s*/).map((s) => s.trim()).filter(Boolean);
+
+  const kept: string[] = [];
+  for (const item of items) {
+    const lower = item.toLowerCase();
+    const isLowerBody = LOWER_BODY_KEYWORDS.some((kw) => lower.includes(kw));
+    if (!isLowerBody) {
+      kept.push(item);
+    }
+  }
+
+  // If we stripped everything (unlikely), fall back to original
+  if (kept.length === 0) return clothes;
+
+  // Rejoin, clean up leading "and"
+  let result = kept.join(", ");
+  result = result.replace(/^and\s+/i, "");
+  // Clean up trailing orphan "and"
+  result = result.replace(/,\s*and\s*$/i, "");
+  // Clean double commas
+  result = result.replace(/,\s*,/g, ",");
+
+  return result;
+}
+
+/**
+ * Rewrite a full_prompt with a different framing.
+ * - Swap the framing sentence
+ * - For tighter framings, also rewrite the clothes portion to remove lower-body items
+ */
+function reframePrompt(
+  fullPrompt: string,
+  clothes: string,
+  framing: Framing
+): string {
+  let prompt = fullPrompt;
+
+  // 1. Replace the framing sentence
+  prompt = prompt.replace(
+    /Medium shot framed from the waist up\./i,
+    FRAMING_TEXT[framing]
+  );
+
+  // 2. For tighter shots, strip lower-body clothing from the prompt
+  if (framing !== "medium" && clothes) {
+    const strippedClothes = stripLowerBody(clothes);
+    if (strippedClothes !== clothes) {
+      // The clothes appear in the prompt after "Change their clothes to "
+      // and before the next sentence (". Place them" or ". They are")
+      prompt = prompt.replace(clothes, strippedClothes);
+    }
+  }
+
+  return prompt;
+}
+
 /**
  * Get a random full_prompt for a given era + region.
  * Each combo has 5 variants × 3 shoot types (outdoor/studio/props) = 15 options.
- * We pick one at random for maximum variety.
+ * We pick one at random, then randomly vary the framing between medium,
+ * medium-close, and close-up — stripping lower-body clothing for tighter shots.
  */
 export function getRandomPrompt(era: Era, region: Region): string {
   const rows = getRows();
@@ -89,8 +203,11 @@ export function getRandomPrompt(era: Era, region: Region): string {
   }
 
   const pick = matches[Math.floor(Math.random() * matches.length)];
+  const framing = pickFraming();
+  const finalPrompt = reframePrompt(pick.full_prompt, pick.clothes, framing);
+
   console.log(
-    `[prompt] era=${era} region=${region} variant=${pick.variant} shoot=${pick.shoot_type} (${matches.length} options)`
+    `[prompt] era=${era} region=${region} variant=${pick.variant} shoot=${pick.shoot_type} framing=${framing} (${matches.length} options)`
   );
-  return pick.full_prompt;
+  return finalPrompt;
 }
