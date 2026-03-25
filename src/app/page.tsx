@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect } from "react";
 import Image from "next/image";
-import { ERA_DATA, REGION_DATA } from "@/lib/prompt-data";
+import { ERA_DATA, REGION_DATA, ERA_FUN_FACTS } from "@/lib/prompt-data";
 import type { Era, Region } from "@/lib/prompt-data";
 
 type Step = "landing" | "region" | "era" | "upload" | "generating" | "result";
@@ -36,6 +36,52 @@ function StepIndicator({ current, total }: { current: number; total: number }) {
           }`}
         />
       ))}
+    </div>
+  );
+}
+
+function GeneratingScreen({ era, region }: { era: Era; region: Region | null }) {
+  const facts = ERA_FUN_FACTS[era];
+  const [factIndex, setFactIndex] = useState(() => Math.floor(Math.random() * facts.length));
+  const [fadeKey, setFadeKey] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setFactIndex((prev) => {
+        let next = Math.floor(Math.random() * facts.length);
+        while (next === prev && facts.length > 1) {
+          next = Math.floor(Math.random() * facts.length);
+        }
+        return next;
+      });
+      setFadeKey((k) => k + 1);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [facts]);
+
+  return (
+    <div className="fade-in flex-1 flex flex-col items-center justify-center px-6 py-12 text-center">
+      <Logo size="sm" />
+      <div className="mt-10 mb-4">
+        <div className="spinner mx-auto" />
+      </div>
+      <p className="text-sm font-semibold uppercase tracking-wider mb-1">
+        Creating your cover
+      </p>
+      <p className="text-xs text-white/40 max-w-xs mb-8">
+        Transforming your photo into a {ERA_DATA[era].label}{" "}
+        {region && REGION_DATA[region].label} hip hop album cover.
+      </p>
+
+      {/* Cycling fun fact */}
+      <div className="max-w-sm mx-auto">
+        <p className="text-[10px] text-[var(--color-gold)] uppercase tracking-widest mb-2 font-semibold">
+          Did you know?
+        </p>
+        <p key={fadeKey} className="text-sm text-white/60 leading-relaxed fade-in">
+          {facts[factIndex]}
+        </p>
+      </div>
     </div>
   );
 }
@@ -164,12 +210,23 @@ export default function Home() {
       formData.append("region", region);
 
       const res = await fetch("/api/generate", { method: "POST", body: formData });
+      const text = await res.text();
+
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        throw new Error("Server returned an invalid response. Please try again.");
+      }
+
       if (!res.ok) {
-        const data = await res.json();
         throw new Error(data.error || "Generation failed");
       }
 
-      const data = await res.json();
+      if (!data.image) {
+        throw new Error("No image returned. Please try again.");
+      }
+
       setResult(data.image);
       setStep("result");
     } catch (err) {
@@ -282,30 +339,30 @@ export default function Home() {
 
       {/* ===== SELECT REGION ===== */}
       {step === "region" && (
-        <div className="fade-in flex-1 flex flex-col px-6 py-8">
+        <div className="fade-in flex-1 flex flex-col px-6 py-4 overflow-y-auto">
           <Logo size="sm" />
-          <div className="mt-4 mb-6">
+          <div className="mt-3 mb-4">
             <StepIndicator current={0} total={4} />
           </div>
 
-          <div className="flex-1 flex flex-col items-center justify-center text-center max-w-lg mx-auto w-full">
-            <h2 className="text-2xl sm:text-3xl font-bold uppercase tracking-wider mb-2">
+          <div className="flex-1 flex flex-col items-center justify-center text-center max-w-lg mx-auto w-full min-h-0">
+            <h2 className="text-2xl sm:text-3xl font-bold uppercase tracking-wider mb-1">
               Select Region
             </h2>
 
             {region && (
-              <div className="fade-in mt-2 mb-6">
-                <p className="text-[var(--color-gold)] text-sm font-semibold uppercase tracking-widest mb-2">
+              <div className="fade-in mt-1 mb-3">
+                <p className="text-[var(--color-gold)] text-xs font-semibold uppercase tracking-widest mb-1">
                   {REGION_DATA[region].label}
                 </p>
-                <p className="text-sm text-white/50 leading-relaxed max-w-sm">
+                <p className="text-xs text-white/50 leading-relaxed max-w-sm">
                   {REGION_DATA[region].description}
                 </p>
               </div>
             )}
-            {!region && <div className="mb-6" />}
+            {!region && <div className="mb-3" />}
 
-            <div className="grid grid-cols-2 gap-2.5 w-full max-w-xs">
+            <div className="grid grid-cols-2 gap-2 w-full max-w-xs">
               {REGIONS.slice(0, 4).map((r) => (
                 <button
                   key={r}
@@ -323,7 +380,7 @@ export default function Home() {
               </button>
             </div>
 
-            <div className="mt-8 w-full">
+            <div className="mt-5 w-full">
               <button
                 className="btn-primary"
                 disabled={!region}
@@ -338,30 +395,30 @@ export default function Home() {
 
       {/* ===== SELECT ERA ===== */}
       {step === "era" && (
-        <div className="fade-in flex-1 flex flex-col px-6 py-8">
+        <div className="fade-in flex-1 flex flex-col px-6 py-4 overflow-y-auto">
           <Logo size="sm" />
-          <div className="mt-4 mb-6">
+          <div className="mt-3 mb-4">
             <StepIndicator current={1} total={4} />
           </div>
 
-          <div className="flex-1 flex flex-col items-center justify-center text-center max-w-lg mx-auto w-full">
-            <h2 className="text-2xl sm:text-3xl font-bold uppercase tracking-wider mb-2">
+          <div className="flex-1 flex flex-col items-center justify-center text-center max-w-lg mx-auto w-full min-h-0">
+            <h2 className="text-2xl sm:text-3xl font-bold uppercase tracking-wider mb-1">
               Select Era
             </h2>
 
             {era && (
-              <div className="fade-in mt-2 mb-6">
-                <p className="text-[var(--color-gold)] text-sm font-semibold uppercase tracking-widest mb-2">
+              <div className="fade-in mt-1 mb-3">
+                <p className="text-[var(--color-gold)] text-xs font-semibold uppercase tracking-widest mb-1">
                   {ERA_DATA[era].label}
                 </p>
-                <p className="text-sm text-white/50 leading-relaxed max-w-sm">
+                <p className="text-xs text-white/50 leading-relaxed max-w-sm">
                   {ERA_DATA[era].description}
                 </p>
               </div>
             )}
-            {!era && <div className="mb-6" />}
+            {!era && <div className="mb-3" />}
 
-            <div className="grid grid-cols-2 gap-2.5 w-full max-w-xs">
+            <div className="grid grid-cols-2 gap-2 w-full max-w-xs">
               {ERAS.slice(0, 4).map((e) => (
                 <button
                   key={e}
@@ -379,7 +436,7 @@ export default function Home() {
               </button>
             </div>
 
-            <div className="mt-8 w-full flex flex-col gap-3 items-center">
+            <div className="mt-5 w-full flex flex-col gap-2 items-center">
               <button
                 className="btn-primary"
                 disabled={!era}
@@ -400,9 +457,9 @@ export default function Home() {
 
       {/* ===== UPLOAD PHOTO ===== */}
       {step === "upload" && (
-        <div className="fade-in flex-1 flex flex-col px-6 py-8">
+        <div className="fade-in flex-1 flex flex-col px-6 py-4 overflow-y-auto">
           <Logo size="sm" />
-          <div className="mt-4 mb-6">
+          <div className="mt-3 mb-4">
             <StepIndicator current={2} total={4} />
           </div>
 
@@ -501,31 +558,20 @@ export default function Home() {
       )}
 
       {/* ===== GENERATING ===== */}
-      {step === "generating" && (
-        <div className="fade-in flex-1 flex flex-col items-center justify-center px-6 py-12 text-center">
-          <Logo size="sm" />
-          <div className="mt-10 mb-4">
-            <div className="spinner mx-auto" />
-          </div>
-          <p className="text-sm font-semibold uppercase tracking-wider mb-1">
-            Creating your cover
-          </p>
-          <p className="text-xs text-white/40 max-w-xs">
-            Transforming your photo into a {era && ERA_DATA[era].label} {region && REGION_DATA[region].label} hip hop album cover.
-          </p>
-        </div>
+      {step === "generating" && era && (
+        <GeneratingScreen era={era} region={region} />
       )}
 
       {/* ===== RESULT ===== */}
       {step === "result" && result && (
-        <div className="fade-in flex-1 flex flex-col px-6 py-8">
+        <div className="fade-in flex-1 flex flex-col px-6 py-4 overflow-y-auto">
           <Logo size="sm" />
-          <div className="mt-4 mb-6">
+          <div className="mt-3 mb-3">
             <StepIndicator current={3} total={4} />
           </div>
 
-          <div className="flex-1 flex flex-col items-center justify-center text-center max-w-lg mx-auto w-full">
-            <h2 className="text-2xl font-bold uppercase tracking-wider mb-4">
+          <div className="flex-1 flex flex-col items-center justify-center text-center max-w-lg mx-auto w-full min-h-0">
+            <h2 className="text-xl font-bold uppercase tracking-wider mb-3">
               Your Cover
             </h2>
 

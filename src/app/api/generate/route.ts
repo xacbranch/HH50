@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getRandomPrompt } from "@/lib/prompts";
+import { getRandomPrompt } from "@/lib/prompt-engine";
 import type { Era, Region } from "@/lib/prompt-data";
 
 export const maxDuration = 60;
@@ -76,14 +76,32 @@ export async function POST(req: NextRequest) {
 
     if (!response.ok) {
       const errorData = await response.text();
-      console.error("Gemini API error:", errorData);
+      console.error("Gemini API error:", response.status, errorData.slice(0, 500));
       return NextResponse.json(
-        { error: `Image generation failed: ${response.status}. Please try again.` },
+        { error: `Image generation failed (${response.status}). Please try again.` },
         { status: 500 }
       );
     }
 
-    const data = await response.json();
+    const responseText = await response.text();
+    if (!responseText) {
+      console.error("Gemini returned empty response body");
+      return NextResponse.json(
+        { error: "Empty response from image generation. Please try again." },
+        { status: 500 }
+      );
+    }
+
+    let data;
+    try {
+      data = JSON.parse(responseText);
+    } catch (parseErr) {
+      console.error("Failed to parse Gemini response:", responseText.slice(0, 500));
+      return NextResponse.json(
+        { error: "Invalid response from image generation. Please try again." },
+        { status: 500 }
+      );
+    }
 
     const candidates = data.candidates;
     if (!candidates?.[0]?.content?.parts) {
