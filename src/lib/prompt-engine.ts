@@ -96,11 +96,11 @@ const REGION_BACKGROUNDS: Record<Region, string[]> = {
     "standing outside a Harlem barbershop at dusk, neon signs glowing in the window, an old-school Cadillac parked on the street, the sidewalk wet from rain",
   ],
   west: [
-    "on a Los Angeles sidewalk at golden hour with palm trees lining the boulevard, a 1964 Chevy Impala on hydraulics parked at the curb, the sun low and hazy through smog",
-    "in front of a Compton corner store with iron bars on the windows, a lowrider Cutlass parked on the street with Daytons, kids on bikes in the background, the golden California light hitting everything warm",
-    "on Crenshaw Boulevard at sunset with the strip stretching behind them, a candy-painted Monte Carlo rolling past, palm trees silhouetted against an orange sky",
-    "in the parking lot of a Watts housing project, chain-link fences and concrete, a Chevy Impala with the hydraulics raised on three wheels, the Los Angeles skyline faint in the smoggy distance",
-    "on a Venice Beach boardwalk at dusk, graffiti murals behind them, skaters rolling past, a lowrider bicycle leaning against a palm tree, the Pacific Ocean visible in the background",
+    "on East LA's Whittier Boulevard at dusk, a 1964 Chevy Impala SS on hydraulics with the front end jacked up parked at the curb, murals of Aztec warriors and the Virgin Mary painted on the cinder block wall behind, taco stands with bare bulb string lights, cholos posted up on the sidewalk, the whole block smelling like carne asada",
+    "on Crenshaw Boulevard in front of the Crenshaw Mall parking lot, a candy-painted '72 Caprice on Daytons three-wheeling down the strip, the barbershop and liquor store signs glowing, palm trees lining the median, that golden LA light cutting through the smog at magic hour",
+    "on International Boulevard in East Oakland at night, a scraper Buick Regal on 22s with the trunk rattling, sideshow donuts still smoking on the asphalt, a liquor store and a taqueria neon signs bleeding together, fog rolling in from the Bay",
+    "in the Fillmore District in San Francisco, Victorian row houses painted in faded pastels behind them, a hyphy-era Cutlass on gold Daytons parked on the hill, the fog thick and low, streetlights glowing through the mist, the Western Addition before it got gentrified",
+    "on MacArthur Boulevard in deep East Oakland, a sideshow pit with tire marks spiraling across the intersection, a ghostride whip rolling slow with the door open, street poles wrapped in RIP memorial flyers, the Oakland hills visible in the smoky distance",
   ],
   south: [
     "in a Houston gas station parking lot at 3am under fluorescent canopy lights, a candy-painted slab on 84s with swangas poking out parked at the pump, trunk popped showing subwoofers, heat shimmer rising off the asphalt",
@@ -131,7 +131,7 @@ const REGION_BACKGROUNDS: Record<Region, string[]> = {
 
 const REGION_MOOD: Record<Region, string> = {
   east: "The mood channels raw East Coast energy — cold blue winter light, concrete and iron, steam from grates, the stark visual language of Jamel Shabazz and Chi Modu's New York street photography",
-  west: "The mood channels West Coast hip hop — golden hour California light, lowriders, palm trees against smoggy orange sunset, the laid-back menace of Estevan Oriol and Mike Miller's photography",
+  west: "The mood channels West Coast hip hop — East LA lowrider culture meets Bay Area sideshow energy, golden hour smog light in the south and cold fog in the north, the unflinching eye of Estevan Oriol's East LA portraits and the raw Bay Area documentation of street life",
   south: "The mood channels Dirty South energy — humid night glow, candy paint and swangas, neon strip mall light, the heat you can feel in the frame",
   midwest: "The mood channels Midwest hip hop — grey overcast sky, brick and iron, chain-link fences, the quiet intensity of a Chicago or Detroit winter, breath visible in the cold air, no glamour just resolve",
   international: "The mood channels global hip hop — neon reflected in rain puddles, concrete and fluorescent light, cosmopolitan grit, the subject feels both local and from everywhere",
@@ -207,7 +207,7 @@ function stripLowerBody(clothes: string): string {
 // REALISM ANCHOR
 // ============================================================
 
-const REALISM = "This must look like an actual photograph — not a painting, illustration, or digital render. Real film grain, real lens distortion, real skin texture with pores and imperfections. Natural lighting falloff. No airbrushing, no glow effects, no fantasy elements, no surreal or impossible compositions. The background must be a real, physically possible location. Shoot it like a real photographer on a real street with a real camera";
+const REALISM = "This must look like an actual photograph — not a painting, illustration, or digital render. Real film grain, real lens distortion, real skin texture with pores and imperfections. Natural lighting falloff. No airbrushing, no glow effects, no fantasy elements, no surreal or impossible compositions. The background must be a real, physically possible location. Shoot it like a real photographer on a real street with a real camera. The subject's expression must be a hard, confident mean mug — no smiling, no grinning, no soft expressions. Jaw tight, eyes dead into the lens, the kind of face that says don't fuck with me. Think album cover intensity, not portrait studio pleasantness";
 
 // ============================================================
 // PROMPT ASSEMBLY
