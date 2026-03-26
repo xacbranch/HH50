@@ -1,91 +1,142 @@
 import "server-only";
+import { readFileSync } from "fs";
+import { join } from "path";
 import type { Era, Region } from "./prompt-data";
 
 // ============================================================
-// PROMPT ENGINE — Modular template with era + region blocks
+// PROMPT ENGINE v3 — CSV-driven randomized mix-and-match
 // ============================================================
 //
-// Template:
-//   Take this exact person and place them into a hip hop album cover
-//   photograph. Change their clothes to {CLOTHES}. Place them
-//   {BACKGROUND}. {REGION_MOOD}. {PHOTO_STYLE}. {REALISM}.
-//   {FRAMING}. No text or typography anywhere in the image.
-//   Keep their likeness perfectly intact. Square 1:1 format.
+// Clothes are assembled from the rap-fashion CSV:
+//   1 random Pants + 1 random Top + 1-2 random Accessories
+//   All filtered by era + region for cultural accuracy
 //
-// ERA controls: clothes (5 variants), photo style + film stock
-// REGION controls: background (5 variants), mood
-// Framing is randomized: medium / medium-close / close-up
-
-// ============================================================
-// ERA: CLOTHES (5 variants each)
+// Backgrounds, mood, photo style, framing, realism — hardcoded
 // ============================================================
 
-const ERA_CLOTHES: Record<Era, string[]> = {
-  "70s": [
-    "super wide bell bottoms dragging on the ground, a shiny polyester shirt unbuttoned to the navel with a massive pointed collar, a floor-length fur coat draped off the shoulders, tall platform shoes, and a wide-brim pimp hat cocked to the side",
-    "high-waisted flared trousers with a razor crease, a skin-tight ribbed turtleneck, a full-length leather trench coat belted at the waist, and knee-high leather boots with a chunky heel",
-    "an oversized dashiki hanging past the hips over extra-wide corduroy bell bottoms, a beaded kufi cap, wooden bead necklaces layered three deep, and suede desert boots",
-    "a three-piece suit with lapels wide as airplane wings, a butterfly collar silk shirt, a pocket square bursting from the breast pocket, a fedora tilted way back, and two-tone wingtip shoes",
-    "a cropped halter vest showing chest, ultra-wide palazzo pants, a headband pushing back an afro, oversized tinted aviator glasses, and a single long chain with a medallion the size of a fist",
-  ],
-  "80s": [
-    "a nylon three-stripe tracksuit zipped halfway down over a thick gold rope chain, the jacket sleeves pushed up to the elbows, a bucket hat tilted back, and crisp white leather shell-toe sneakers with fat laces",
-    "a custom leather bomber jacket with an all-over graphic print, four-finger gold rings spelling a name, a thick nameplate chain, and high-top basketball sneakers with the tongue pulled out",
-    "a massive shearling coat hanging to the knees, a beret pulled low over one eye, a nameplate chain in old english script, thick square-frame glasses with clear lenses, and low-top suede sneakers",
-    "a red and black leather 8-ball jacket three sizes too big, a fitted cap with the sticker still on, stone-wash jeans pegged at the ankle, and bright white low-top leather sneakers",
-    "a floor-length black leather duster over a graphic hip hop tee, high-waisted pleated trousers, a flat-top fade, an oversized clock pendant on a thick chain around the neck, and suede chukka boots",
-  ],
-  "90s": [
-    "a super baggy button-up work shirt buttoned only at the top over a crisp white undershirt, enormous baggy jeans sagging with boxers showing, wheat six-inch work boots with laces untied, a bandana folded and tied around the forehead, and a two-way pager on the belt",
-    "a XXXL hockey jersey hanging to the knees, extra-wide carpenter jeans dragging on the ground with the cuffs shredded, a gold rope chain with a crucifix pendant, and scuffed-up white leather sneakers",
-    "a quilted bubble vest over an oversized hoodie with the hood up, super baggy cargo pants with every pocket stuffed, a gold link bracelet, and tan suede moccasin-toe shoes",
-    "a triple-XL rugby shirt with horizontal stripes tucked into belted wide-leg khakis, a gold link bracelet, a pager clipped to the belt, and fresh all-white low-top leather sneakers",
-    "a comically oversized denim jacket with the sleeves cuffed once over a thermal henley, dark baggy jeans with a razor crease, a beanie pulled low, and tan suede moccasin-toe shoes",
-  ],
-  "00s": [
-    "a tall white tee hanging almost to the knees, basketball shorts past the calves over long socks, an iced-out chain with a spinning medallion, a fitted cap slightly tilted, and crisp white low-top leather sneakers",
-    "a full velour tracksuit with the zipper halfway down showing a diamond-studded chain, rimless rectangular glasses, a diamond bezel watch, and alligator-skin loafers",
-    "a throwback basketball jersey so big the armholes hang to the waist, super baggy denim shorts below the knee, a platinum chain with an iced-out cross, and butter-colored six-inch work boots",
-    "a pink full-length fur coat over a fitted black tee, oversized aviator sunglasses with rose-tinted lenses, a skinny scarf hanging to the waist, and exotic skin dress shoes",
-    "a button-down shirt with only the top button done over a white tank, an iced-out rosary chain, wide-leg embroidered denim jeans with massive back pockets, and all-white low-top leather sneakers",
-  ],
-  "10s": [
-    "a long camel overcoat over an oversized hoodie with the strings hanging, skinny distressed black jeans with blown-out knees, high-top avant-garde geometric sneakers, face tattoos across the cheekbones, and a crossbody bag slung low",
-    "a graphic tee tucked into leather pants, a chain hanging to the navel, chunky silver rings on every finger, tall lace-up combat boots with the tongues out, and a do-rag under a fitted cap",
-    "an oversized tie-dye hoodie big enough to be a dress, baggy cargo pants stacked over chunky thick-sole foam sneakers, painted fingernails, and face tattoos on the neck and hands",
-    "a cropped puffer jacket over a mock-neck base layer, ultra-wide leg trousers puddling over thick platform boots, layered necklaces mixing pearls and chains, and tinted oval sunglasses",
-    "a vintage band tee with the sleeves cut off over a long-sleeve thermal, slim-straight raw denim cuffed once, beat-up canvas high-top sneakers, and a beanie with hair spilling out",
-  ],
+// ---- CSV LOADING ----
+
+interface FashionItem {
+  region: string;
+  era_years: string;
+  era_name: string;
+  category: "Pants" | "Tops" | "Accessories";
+  item_description: string;
+}
+
+let _items: FashionItem[] | null = null;
+
+function parseCSVLine(line: string): string[] {
+  const result: string[] = [];
+  let current = "";
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === '"') {
+      if (inQuotes && line[i + 1] === '"') { current += '"'; i++; }
+      else inQuotes = !inQuotes;
+    } else if (ch === "," && !inQuotes) {
+      result.push(current.trim());
+      current = "";
+    } else {
+      current += ch;
+    }
+  }
+  result.push(current.trim());
+  return result;
+}
+
+function loadCSV(): FashionItem[] {
+  if (_items) return _items;
+  const csvPath = join(process.cwd(), "src", "lib", "rap-fashion.csv");
+  const raw = readFileSync(csvPath, "utf-8");
+  const lines = raw.split("\n").filter((l) => l.trim());
+  const headers = parseCSVLine(lines[0]);
+
+  _items = lines.slice(1).map((line) => {
+    const vals = parseCSVLine(line);
+    const row: Record<string, string> = {};
+    headers.forEach((h, i) => (row[h] = vals[i] || ""));
+    return row as unknown as FashionItem;
+  });
+  return _items;
+}
+
+// ---- ERA + REGION MAPPING ----
+
+const CSV_REGION_MAP: Record<Region, string[]> = {
+  east: ["East Coast"],
+  west: ["West Coast"],
+  south: ["South"],
+  midwest: ["Midwest"],
+  international: ["London", "Paris", "Tokyo"],
 };
 
-// South-specific overrides (grills, jerseys in 00s)
-const SOUTH_CLOTHES_OVERRIDES: Partial<Record<Era, (string | null)[]>> = {
-  "90s": [
-    "a super baggy button-up work shirt buttoned only at the top over a crisp white undershirt, enormous baggy jeans sagging, wheat six-inch work boots with laces untied, a gold grill on the bottom row, a bandana tied around the forehead, and a two-way pager on the belt",
-    "a XXXL pullover windbreaker jacket with the hood up, extra-wide carpenter jeans dragging on the ground, a gold rope chain with a crucifix pendant, a single gold tooth, and scuffed-up white leather sneakers",
-    "a quilted bubble vest over an oversized hoodie with the hood up, super baggy cargo pants, a gold bottom grill, a gold link bracelet, and tan suede moccasin-toe shoes",
-    null, // use default
-    null,
-  ],
-  "00s": [
-    "a baggy throwback football jersey three sizes too big in silver and blue over a white tee, extra-long denim shorts past the knee, crisp white low-top leather sneakers, a diamond grill on the bottom teeth, and an iced-out chain with a Texas-shaped pendant",
-    "a full velour tracksuit with the zipper halfway down showing a diamond-studded chain, rimless rectangular glasses, a diamond and gold grill gleaming, and alligator-skin cowboy boots",
-    "a super baggy vintage football jersey in light blue and red hanging to the knees, extra-wide denim shorts below the knee, a platinum chain with an iced-out cross, a full gold grill, and butter-colored six-inch work boots",
-    "a pink full-length fur coat over a fitted black tee, oversized aviator sunglasses with rose-tinted lenses, a bottom grill with diamond cuts, and exotic skin dress shoes",
-    "a button-down shirt with only the top button done over a white tank, an iced-out rosary chain, wide-leg embroidered denim jeans with massive back pockets, a permanent gold grill, and all-white low-top leather sneakers",
-  ],
-  "10s": [
-    "a long camel overcoat over an oversized hoodie, skinny distressed black jeans, high-top avant-garde geometric sneakers, a VVS diamond grill, face tattoos across the cheekbones, and a crossbody bag slung low",
-    "a graphic tee tucked into leather pants, a chain hanging to the navel, chunky silver rings on every finger, tall lace-up combat boots, a custom rainbow grill, and a do-rag under a fitted cap",
-    "an oversized tie-dye hoodie big enough to be a dress, baggy cargo pants stacked over chunky thick-sole foam sneakers, painted fingernails, a full iced-out grill, and face tattoos on the neck",
-    null,
-    null,
-  ],
-};
+// Map app eras to CSV era_years ranges by start year
+function eraMatchesAppEra(csvEraYears: string, appEra: Era): boolean {
+  const start = parseInt(csvEraYears.split("-")[0], 10);
+  switch (appEra) {
+    case "70s": return start >= 1975 && start < 1985;
+    case "80s": return start >= 1983 && start < 1993;
+    case "90s": return start >= 1989 && start < 2003;
+    case "00s": return start >= 2000 && start < 2010;
+    case "10s": return start >= 2010;
+  }
+}
 
-// ============================================================
-// REGION: BACKGROUNDS (5 variants each)
-// ============================================================
+function getItems(era: Era, region: Region, category: string): string[] {
+  const items = loadCSV();
+  const csvRegions = CSV_REGION_MAP[region];
+  return items
+    .filter(
+      (item) =>
+        csvRegions.includes(item.region) &&
+        eraMatchesAppEra(item.era_years, era) &&
+        item.category === category
+    )
+    .map((item) => item.item_description);
+}
+
+function pickRandom<T>(arr: T[]): T {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
+// ---- BUILD OUTFIT ----
+
+function buildOutfit(era: Era, region: Region): string {
+  const pants = getItems(era, region, "Pants");
+  const tops = getItems(era, region, "Tops");
+  const accessories = getItems(era, region, "Accessories");
+
+  const parts: string[] = [];
+
+  if (pants.length > 0) parts.push(pickRandom(pants));
+  if (tops.length > 0) parts.push(pickRandom(tops));
+
+  // Pick 1-2 accessories
+  if (accessories.length > 0) {
+    const acc1 = pickRandom(accessories);
+    parts.push(acc1);
+    if (accessories.length > 1 && Math.random() < 0.6) {
+      let acc2 = pickRandom(accessories);
+      let attempts = 0;
+      while (acc2 === acc1 && attempts < 5) {
+        acc2 = pickRandom(accessories);
+        attempts++;
+      }
+      if (acc2 !== acc1) parts.push(acc2);
+    }
+  }
+
+  // Fallback if CSV has no data for this combo
+  if (parts.length === 0) {
+    return "era-appropriate hip hop clothing";
+  }
+
+  return parts.join(", ");
+}
+
+// ---- REGION BACKGROUNDS (5 per region) ----
 
 const REGION_BACKGROUNDS: Record<Region, string[]> = {
   east: [
@@ -125,9 +176,7 @@ const REGION_BACKGROUNDS: Record<Region, string[]> = {
   ],
 };
 
-// ============================================================
-// REGION: MOOD MODIFIERS
-// ============================================================
+// ---- REGION MOOD ----
 
 const REGION_MOOD: Record<Region, string> = {
   east: "The mood channels raw East Coast energy — cold blue winter light, concrete and iron, steam from grates, the stark visual language of Jamel Shabazz and Chi Modu's New York street photography",
@@ -137,9 +186,7 @@ const REGION_MOOD: Record<Region, string> = {
   international: "The mood channels global hip hop — neon reflected in rain puddles, concrete and fluorescent light, cosmopolitan grit, the subject feels both local and from everywhere",
 };
 
-// ============================================================
-// ERA: PHOTO STYLE + FILM STOCK
-// ============================================================
+// ---- ERA PHOTO STYLE ----
 
 const ERA_PHOTO_STYLE: Record<Era, string> = {
   "70s": "In the style of Joe Conzo's block party documentation and early Jamel Shabazz street portraits. Shot on a Contax G2 with on-camera flash, Kodak Tri-X 400 black and white film pushed to 1600. Harsh direct flash, deep blacks, gritty grain, documentary and unstaged",
@@ -149,19 +196,10 @@ const ERA_PHOTO_STYLE: Record<Era, string> = {
   "10s": "In the style of Gunner Stahl and Nabil Elderkin's atmospheric portraits. Shot on a Contax G2 with on-camera flash, Kodak Portra 800 color film with desaturated tones and lifted blacks. Soft natural light mixed with neon spill, melancholic and atmospheric",
 };
 
-// ============================================================
-// FRAMING
-// ============================================================
+// ---- FRAMING ----
 
 type Framing = "wide" | "medium" | "medium-close" | "close-up";
 
-/**
- * Random framing distribution:
- *   20% wide (full body, head to toe — shows shoes, pants, full outfit)
- *   35% medium (waist up — the classic album cover framing)
- *   25% medium-close (chest up — emphasizes jewelry, chains, upper layers)
- *   20% close-up (shoulders/face — intimate, iconic, tight crop)
- */
 function pickFraming(): Framing {
   const roll = Math.random();
   if (roll < 0.20) return "wide";
@@ -177,74 +215,50 @@ const FRAMING_TEXT: Record<Framing, string> = {
   "close-up": "Close-up shot framed from the shoulders up, tight on the face and upper chest, intimate and iconic.",
 };
 
-// Lower-body keywords to strip for tighter framings
-const LOWER_BODY_KW = [
-  "pants", "jeans", "trousers", "shorts", "bell bottoms", "palazzo",
-  "cargo pants", "joggers", "leggings", "chinos", "khakis", "denim shorts",
-  "boots", "boot", "sneakers", "sneaker", "shoes", "shoe",
-  "timberland", "timbs", "air force", "shell-toe", "superstars", "cortez",
-  "platform shoes", "foam runner", "rick owens", "maison margiela",
-  "wallabees", "wallabee", "reeboks", "reebok", "puma", "nikes", "nike",
-  "combat boot", "canvas sneaker", "forces", "loafers",
-  "long socks", "tube socks",
-];
-
-function stripLowerBody(clothes: string): string {
-  const items = clothes.split(/,\s*/).map((s) => s.trim()).filter(Boolean);
-  const kept: string[] = [];
-  for (const item of items) {
+// For tighter framings, strip pants/shoes from the outfit string
+function stripLowerBody(outfit: string): string {
+  const items = outfit.split(/,\s*/).map((s) => s.trim()).filter(Boolean);
+  const LOWER_KW = [
+    "pants", "jeans", "trousers", "shorts", "joggers", "chinos", "khakis",
+    "bell bottoms", "cargo", "denim short", "sweatpants", "track pants",
+    "boots", "boot", "sneakers", "sneaker", "shoes", "shoe",
+    "loafers", "moccasin", "slippers", "sandals",
+  ];
+  const kept = items.filter((item) => {
     const lower = item.toLowerCase();
-    const isLower = LOWER_BODY_KW.some((kw) => lower.includes(kw));
-    if (!isLower) kept.push(item);
-  }
-  if (kept.length === 0) return clothes;
-  let result = kept.join(", ");
-  result = result.replace(/^and\s+/i, "").replace(/,\s*and\s*$/i, "").replace(/,\s*,/g, ",");
-  return result;
+    return !LOWER_KW.some((kw) => lower.includes(kw));
+  });
+  return kept.length > 0 ? kept.join(", ") : outfit;
 }
 
-// ============================================================
-// REALISM ANCHOR
-// ============================================================
+// ---- REALISM ANCHOR ----
 
 const REALISM = "This must look like an actual photograph — not a painting, illustration, or digital render. Real film grain, real lens distortion, real skin texture with pores and imperfections. Natural lighting falloff. No airbrushing, no glow effects, no fantasy elements, no surreal or impossible compositions. The background must be a real, physically possible location. Shoot it like a real photographer on a real street with a real camera. The subject's expression must be a hard, confident mean mug — no smiling, no grinning, no soft expressions. Jaw tight, eyes dead into the lens, the kind of face that says don't fuck with me. Think album cover intensity, not portrait studio pleasantness";
 
-// ============================================================
-// PROMPT ASSEMBLY
-// ============================================================
+// ---- PROMPT ASSEMBLY ----
 
 export function getRandomPrompt(era: Era, region: Region): string {
-  // Pick random variant index (0-4)
-  const variantIdx = Math.floor(Math.random() * 5);
+  // Build randomized outfit from CSV
+  const outfit = buildOutfit(era, region);
 
-  // Get clothes — check South overrides first
-  let clothes: string;
-  const southOverride = region === "south" ? SOUTH_CLOTHES_OVERRIDES[era]?.[variantIdx] : null;
-  if (southOverride) {
-    clothes = southOverride;
-  } else {
-    clothes = ERA_CLOTHES[era][variantIdx];
-  }
+  // Pick background
+  const backgrounds = REGION_BACKGROUNDS[region];
+  const background = pickRandom(backgrounds);
 
-  // Get background (region-specific)
-  const bgIdx = Math.floor(Math.random() * 5);
-  const background = REGION_BACKGROUNDS[region][bgIdx];
-
-  // Get mood, photo style
+  // Mood + photo style
   const mood = REGION_MOOD[region];
   const photoStyle = ERA_PHOTO_STYLE[era];
 
-  // Pick framing
+  // Framing
   const framing = pickFraming();
   const framingText = FRAMING_TEXT[framing];
 
-  // Wide + medium keep full outfit; tighter shots strip lower-body items
-  const finalClothes = (framing === "wide" || framing === "medium") ? clothes : stripLowerBody(clothes);
+  // Strip lower-body for tighter shots
+  const finalOutfit = (framing === "wide" || framing === "medium") ? outfit : stripLowerBody(outfit);
 
-  // Assemble
   const prompt = [
     `Take this exact person and place them into a hip hop album cover photograph.`,
-    `Change their clothes to ${finalClothes}.`,
+    `Change their clothes to ${finalOutfit}.`,
     `Place them ${background}.`,
     `${mood}.`,
     `${photoStyle}.`,
@@ -254,9 +268,7 @@ export function getRandomPrompt(era: Era, region: Region): string {
     `Keep their likeness perfectly intact. Square 1:1 format.`,
   ].join(" ");
 
-  console.log(
-    `[prompt] era=${era} region=${region} variant=${variantIdx + 1} bg=${bgIdx + 1} framing=${framing}`
-  );
+  console.log(`[prompt] era=${era} region=${region} framing=${framing} outfit=${finalOutfit.substring(0, 80)}...`);
 
   return prompt;
 }
