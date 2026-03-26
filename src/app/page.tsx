@@ -266,6 +266,7 @@ export default function Home() {
 
   const reset = () => {
     // Skip landing on subsequent runs — go straight to region
+    // Keep photo/photoFile so user doesn't have to re-upload
     if (hasVisitedLanding) {
       setStep("region");
     } else {
@@ -273,8 +274,6 @@ export default function Home() {
     }
     setEra(null);
     setRegion(null);
-    setPhoto(null);
-    setPhotoFile(null);
     setResult(null);
     setError(null);
   };
