@@ -72,27 +72,39 @@ const CSV_REGION_MAP: Record<Region, string[]> = {
   international: ["London", "Paris", "Tokyo"],
 };
 
-// Map app eras to CSV era_years ranges by start year
+// Map app eras to CSV era_years ranges
+// Uses start year with tight boundaries to prevent anachronistic items
+// (e.g. skinny jeans should NOT appear in 00s — they're 2008+ = 10s territory)
 function eraMatchesAppEra(csvEraYears: string, appEra: Era): boolean {
   const start = parseInt(csvEraYears.split("-")[0], 10);
   switch (appEra) {
-    case "70s": return start >= 1975 && start < 1985;
-    case "80s": return start >= 1983 && start < 1993;
-    case "90s": return start >= 1989 && start < 2003;
-    case "00s": return start >= 2000 && start < 2010;
-    case "10s": return start >= 2010;
+    case "70s": return start >= 1975 && start < 1984;
+    case "80s": return start >= 1983 && start < 1992;
+    case "90s": return start >= 1989 && start < 2001;
+    case "00s": return start >= 1997 && start < 2006;
+    case "10s": return start >= 2006;
   }
 }
+
+// Anachronistic items to exclude from specific eras
+const ERA_EXCLUDE: Partial<Record<Era, RegExp>> = {
+  "70s": /skinny|slim.?fit|tapered|distressed/i,
+  "80s": /skinny|slim.?fit|tapered|distressed|velour tracksuit/i,
+  "90s": /skinny|slim.?fit|tapered|puffer.*cropped|designer.*hoodie/i,
+  "00s": /skinny|ultra.?skinny|painted.?on|tapered to ankle/i,
+};
 
 function getItems(era: Era, region: Region, category: string): string[] {
   const items = loadCSV();
   const csvRegions = CSV_REGION_MAP[region];
+  const exclude = ERA_EXCLUDE[era];
   return items
     .filter(
       (item) =>
         csvRegions.includes(item.region) &&
         eraMatchesAppEra(item.era_years, era) &&
-        item.category === category
+        item.category === category &&
+        (!exclude || !exclude.test(item.item_description))
     )
     .map((item) => item.item_description);
 }
